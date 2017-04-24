@@ -11,7 +11,7 @@
 ;; ybar1 -> y cordinate of the centre of the left bar
 ;; ybar2 -> y cordinate of the centre of the right bar
 ;; sim-count -> simulation-count so far
-;; ball_present -> bool representing whetherr ball is visible or not
+;; ball_present -> bool representing whether ball is visible or not
 ;; x-ball -> x cordinate of the centre of the ball
 ;; y-ball -> x cordinate of the centre of the ball
 ;; vx-ball -> x cordinate of the velocity of the centre of the ball
@@ -21,6 +21,7 @@
 ;; scoreL -> score so far of the left player
 ;; scoreR -> score so far of the right player
 ;; won -> parameter representnig who has won present match
+;; menushow -> bool to decide to show the menu screen
 
 (struct world (ybar1 ybar2
                sim-count
@@ -30,10 +31,11 @@
                color
                quit
                scoreL scoreR
-               won) #:mutable)
+               won
+               menushow) #:mutable)
 
 ;; initialisation of our world
-(define WORLD (world 300 300 0 #f 500 300 0 0 "yellow" #f 0 0 'U))
+(define WORLD (world 300 300 0 #f 500 300 0 0 "yellow" #f 0 0 'U #t))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;Making a hashtable storing the current status of the keys to allow for simultaneous movement of the bars.
@@ -79,15 +81,18 @@
     [(key=? inp-key " ")   (cond ;The space bar should bring the ball back to existence only if the ball is absent
                              [(not (world-ball_present WORLD))
                               (begin
-                                (cond [(not (eq? (world-won WORLD) 'U))
-                                       (begin
-                                         (set-world-won! WORLD 'U)
-                                         (set-world-scoreL! WORLD 0)
-                                         (set-world-scoreR! WORLD 0))])
                                 (set-world-ball_present! WORLD #t)
                                 (set-world-vx-ball! WORLD (+ 1 (random 3)))
                                 (set-world-vy-ball! WORLD (random 2)))])]
-    [(key=? inp-key "g") (set-world-quit! WORLD #t)])
+    [(key=? inp-key "g") (set-world-quit! WORLD #t)]
+    [(key=? inp-key "z") (begin
+                           (cond [(not (eq? (world-won WORLD) 'U))
+                                  (begin
+                                    (set-world-menushow! WORLD #t)
+                                    (set-world-won! WORLD 'U)
+                                    (set-world-scoreL! WORLD 0)
+                                    (set-world-scoreR! WORLD 0))]
+                                  [else (set-world-menushow! WORLD #f)]))])
   WORLD)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -114,6 +119,25 @@ WORLD)
                                                        (place-image background-image 500 300
                                                                     (empty-scene 1000 600)))))
 
+  ;;Menu scene to show general instructions
+  (define instruction1 "press the key 'g' to exit the game")
+  (define instruction2 "press space-bar to release the ball")
+  (define instruction3 "left player can use w/s for up/down")
+  (define instruction4 "right player can use arrow(up/down)")
+  (define instruction5 "press the key 'z' to continue")
+  (define t1 (text instruction1 30 "black"))
+  (define t2 (text instruction2 30 "black"))
+  (define t3 (text instruction3 30 "black"))
+  (define t4 (text instruction4 30 "black"))
+  (define t5 (text instruction5 30 "black"))
+  (define scene-menu (place-image t1 500 20
+                                  (place-image t2 500 80
+                                               (place-image t3 500 140
+                                                            (place-image t4 500 200
+                                                                         (place-image t5 500 260
+                                                                                      (place-image menu-image 500 300 (empty-scene 1000 600))))))))
+  
+
   ;;Scene containing the score board of the players
   (define scene-score (place-image scoreL 450 50 (place-image scoreR 550 50 scene-paddle)))
   (define won-message "")
@@ -123,18 +147,22 @@ WORLD)
          (set! won-message "Right player won")])
   (define won (text won-message 100 "violet"))
 
-  ;;Scene which will appear when one of the players will will
-  (define won-scene (place-image won 500 250 (place-image background-image 500 300 (empty-scene 1000 600))))
+  ;;Scene which will appear when one of the players will win
+  (define scene-won (place-image won 500 250
+                                 (place-image t5 500 450
+                                              (place-image background-image 500 300 (empty-scene 1000 600)))))
 
   ;;actual display of the scene depending upon the state of the game
-  (if (not (eq? (world-won WORLD) 'U))
-      (begin
-        (set-world-ball_present! WORLD #f)
-        won-scene)
-      ;Ball is visible only if the world-ball_present is true
-      (if (world-ball_present WORLD)
-          (place-image ball (world-x-ball WORLD) (world-y-ball WORLD) scene-score)
-          scene-score)))
+  (cond [(world-menushow WORLD) scene-menu]
+        [else (begin
+                (if (not (eq? (world-won WORLD) 'U))
+                    (begin
+                      (set-world-ball_present! WORLD #f)
+                      scene-won)
+                    ;Ball is visible only if the world-ball_present is true
+                    (if (world-ball_present WORLD)
+                        (place-image ball (world-x-ball WORLD) (world-y-ball WORLD) scene-score)
+                        scene-score)))]))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;the stop funtion which will check if tha game is to stopped
